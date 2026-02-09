@@ -10,7 +10,7 @@ from resistors import Resistor
 
 # Resistor values in ohms (order preserved for layout)
 RESISTANCE_OHMS = [
-    10, 20, 47, 100, 150, 200, 220, 270, 330, 470, 510, 680,
+    10, 22, 47, 100, 150, 200, 220, 270, 330, 470, 510, 680,
     1000, 2000, 2200, 3300, 4700, 5100, 6800, 10_000, 20_000, 47_000,
     51_000, 68_000, 100_000, 220_000, 300_000, 470_000, 680_000, 1_000_000,
 ]
@@ -41,8 +41,12 @@ ET.register_namespace("sodipodi", "http://sodipodi.sourceforge.net/DTD/sodipodi-
 # 6 rows x 5 columns; tight spacing for cutting (sticker size from template)
 COLS = 5
 ROWS = 6
-STICKER_W = 21.0
-STICKER_H = 11.5
+STICKER_W = 23.0
+STICKER_H = 12.0
+
+# Original template dimensions (from t_tag path bounding box)
+TEMPLATE_W = 21.0
+TEMPLATE_H = 11.5
 
 # t_color_tolerance right edge: align value text to this x (text-anchor:end)
 TOLERANCE_RECT_X = 25.002619
@@ -110,6 +114,9 @@ def main() -> None:
     layer.set("id", "stickers")
     set_label(layer, "Stickers")
 
+    scale_x = STICKER_W / TEMPLATE_W
+    scale_y = STICKER_H / TEMPLATE_H
+
     for idx, ohms in enumerate(RESISTANCE_OHMS):
         row = idx // COLS
         col = idx % COLS
@@ -123,7 +130,7 @@ def main() -> None:
 
         group = ET.SubElement(layer, f"{{{SVG_NS}}}g")
         group.set("id", f"sticker_{idx}")
-        group.set("transform", f"translate({tx},{ty})")
+        group.set("transform", f"translate({tx},{ty}) scale({scale_x},{scale_y})")
         set_label(group, value_text)
 
         prefix = f"sticker{idx}"
