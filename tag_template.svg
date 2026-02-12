@@ -7,7 +7,7 @@
    viewBox="0 0 210 297"
    version="1.1"
    id="svg1"
-   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
    sodipodi:docname="tag_template.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -24,12 +24,12 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="5.7513468"
-     inkscape:cx="45.03293"
-     inkscape:cy="50.336036"
+     inkscape:cx="25.993912"
+     inkscape:cy="88.240201"
      inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
+     inkscape:window-height="1008"
+     inkscape:window-x="1080"
+     inkscape:window-y="715"
      inkscape:window-maximized="1"
      inkscape:current-layer="layer1"
      showgrid="false" />
@@ -41,7 +41,7 @@
      id="layer1">
     <path
        id="rect231"
-       style="fill:none;stroke:#000000;stroke-width:0.132;stroke-dasharray:none;stop-color:#000000"
+       style="display:inline;fill:none;stroke:#ea2f92;stroke-width:0.132;stroke-dasharray:none;stop-color:#000000;stroke-opacity:1"
        d="M 8.4605201,20.746265 V 9.2461907 H 29.460788 V 20.746265 h -1.75028 V 18.745871 H 10.210801 v 2.000394 z"
        inkscape:label="t_tag" />
     <text
@@ -101,14 +101,14 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:none;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;stroke-width:0.264583"
-       x="10.377505"
-       y="17.918329"
+       x="26.768585"
+       y="12.221188"
        id="text2811"
        inkscape:label="t_tolerance"><tspan
          sodipodi:role="line"
          id="tspan2809"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:none;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="10.377505"
-         y="17.918329">±1</tspan></text>
+         x="26.768585"
+         y="12.221188">±1</tspan></text>
   </g>
 </svg>

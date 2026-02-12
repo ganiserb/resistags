@@ -8,26 +8,19 @@ from pathlib import Path
 
 from resistors import Resistor
 
-# Resistor values in ohms (order preserved for layout)
-RESISTANCE_OHMS = [
-    10, 22, 47, 100, 150, 200, 220, 270, 330, 470, 510, 680,
-    1000, 2000, 2200, 3300, 4700, 5100, 6800, 10_000, 20_000, 47_000,
-    51_000, 68_000, 100_000, 220_000, 300_000, 470_000, 680_000, 1_000_000,
-]
-
 # Color name -> fill hex (6 digits for SVG)
 COLOR_HEX = {
     "black": "000000",
-    "brown": "b24000",
+    "brown": "784421",
     "red": "ff0000",
-    "orange": "ff8000",
+    "orange": "ff6600",
     "yellow": "ffff00",
     "green": "00c400",
-    "blue": "002bff",
-    "violet": "dc2bff",
+    "blue": "0055d4",
+    "violet": "8f37c8",
     "grey": "828282",
     "white": "dbdbdb",
-    "gold": "fbb839",
+    "gold": "decd87",
     "silver": "c0c0c0",
 }
 
@@ -38,9 +31,8 @@ ET.register_namespace("inkscape", INSCAPE_NS)
 ET.register_namespace("", SVG_NS)
 ET.register_namespace("sodipodi", "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
 
-# 6 rows x 5 columns; tight spacing for cutting (sticker size from template)
+# Grid layout: columns per row (rows calculated automatically)
 COLS = 5
-ROWS = 6
 STICKER_W = 23.0
 STICKER_H = 12.0
 
@@ -54,16 +46,81 @@ TOLERANCE_RECT_W = 3.1784496
 VALUE_RIGHT_X = TOLERANCE_RECT_X + TOLERANCE_RECT_W
 
 
-def format_value(ohms: int) -> str:
+def format_value(ohms: float) -> str:
     if ohms >= 1_000_000:
         if ohms == 1_000_000:
             return "1 MΩ"
         return f"{ohms / 1_000_000:.1f} MΩ".replace(".0 ", " ")
     if ohms >= 1_000:
         if ohms % 1_000 == 0:
-            return f"{ohms // 1_000} kΩ"
+            return f"{int(ohms // 1_000)} kΩ"
         return f"{ohms / 1_000:.1f} kΩ".replace(".0 ", " ")
+    if ohms < 1:
+        return f"{ohms} Ω"
+    if ohms == int(ohms):
+        return f"{int(ohms)} Ω"
     return f"{ohms} Ω"
+
+
+def get_subohm_colors(ohms: float, tolerance: float, num_bands: int) -> list[str]:
+    """Manually construct color bands for sub-ohm and low-ohm values.
+    
+    For values < 1 ohm: uses leading black (0), then significant digits, silver (0.01x) multiplier.
+    For values like 1.58: uses standard encoding with appropriate multiplier.
+    """
+    # Tolerance color mapping
+    tolerance_colors = {1.0: "brown", 5.0: "gold", 10.0: "silver"}
+    tolerance_color = tolerance_colors.get(tolerance, "brown")
+    
+    digit_colors = ["black", "brown", "red", "orange", "yellow", "green", "blue", "violet", "grey", "white"]
+    
+    if ohms < 10:
+        # For values < 10 ohms: use centiohms encoding with silver or grey multiplier
+        # Examples:
+        # 0.1 = 10 * 0.01 = black(0), brown(1), black(0), silver, brown
+        # 0.33 = 33 * 0.01 = black(0), orange(3), orange(3), silver, brown
+        # 0.5 = 50 * 0.01 = black(0), green(5), black(0), silver, brown
+        # 1.0 = 100 * 0.01 = brown(1), black(0), black(0), silver, brown
+        # 1.5 = 150 * 0.01 = brown(1), green(5), black(0), grey, brown
+        # 2.0 = 200 * 0.01 = red(2), black(0), black(0), silver, brown
+        
+        # Convert to centiohms (multiply by 100) to get the significant digits
+        centiohms = int(round(ohms * 100))
+        digits = [int(d) for d in str(centiohms)]
+        
+        # Determine multiplier: grey for values with one decimal place (like 1.5), silver for others
+        if ohms < 1:
+            multiplier = "silver"  # 0.01x for sub-ohm values
+        elif ohms == int(ohms):
+            multiplier = "silver"  # 0.01x for integer values like 1.0, 2.0
+        else:
+            multiplier = "grey"  # 0.01x for decimal values like 1.5
+        
+        if num_bands == 5:
+            # Pad to 3 digits with leading zeros
+            while len(digits) < 3:
+                digits.insert(0, 0)
+            return [
+                digit_colors[digits[0]],
+                digit_colors[digits[1]],
+                digit_colors[digits[2]],
+                multiplier,
+                tolerance_color,
+            ]
+        else:
+            # 4-band: pad to 2 digits
+            while len(digits) < 2:
+                digits.insert(0, 0)
+            return [
+                digit_colors[digits[0]],
+                digit_colors[digits[1]],
+                multiplier,
+                tolerance_color,
+            ]
+    else:
+        # For values >= 10, use standard library
+        r = Resistor.with_resistance(int(ohms), tolerance, num_bands)
+        return r.get_colors()
 
 
 def set_rect_fill(style_attr: str, hex_fill: str) -> str:
@@ -95,9 +152,19 @@ def uniquify_ids(parent: ET.Element, prefix: str) -> None:
         uniquify_ids(child, prefix)
 
 
-def main() -> None:
+def generate_stickers(resistance_ohms: list[float | int], output_filename: str, tolerance: float = 1.0) -> Path:
+    """Generate sticker SVG for a list of resistance values.
+    
+    Args:
+        resistance_ohms: List of resistance values in ohms (can be decimal for values < 1)
+        output_filename: Output filename (e.g., "resistags_output.svg")
+        tolerance: Tolerance percentage (e.g., 1.0 for 1%, 5.0 for 5%)
+    
+    Returns:
+        Path to the generated file
+    """
     template_path = Path(__file__).resolve().parent / "tag_template.svg"
-    out_path = template_path.parent / "resistags_output.svg"
+    out_path = template_path.parent / output_filename
 
     tree = ET.parse(template_path)
     root = tree.getroot()
@@ -117,14 +184,21 @@ def main() -> None:
     scale_x = STICKER_W / TEMPLATE_W
     scale_y = STICKER_H / TEMPLATE_H
 
-    for idx, ohms in enumerate(RESISTANCE_OHMS):
+    # Determine number of bands based on tolerance (5 bands for 1%, 4 bands for others)
+    num_bands = 5 if tolerance == 1.0 else 4
+
+    for idx, ohms in enumerate(resistance_ohms):
         row = idx // COLS
         col = idx % COLS
         tx = col * STICKER_W
         ty = row * STICKER_H
 
-        r = Resistor.with_resistance(ohms, 1, 5)
-        colors = r.get_colors()
+        # Handle values < 10 ohms manually (library doesn't support sub-ohm and low values properly)
+        if ohms < 10:
+            colors = get_subohm_colors(ohms, tolerance, num_bands)
+        else:
+            r = Resistor.with_resistance(int(ohms), tolerance, num_bands)
+            colors = r.get_colors()
         hexes = [COLOR_HEX.get(c.lower(), "000000") for c in colors]
         value_text = format_value(ohms).strip()
 
@@ -147,11 +221,26 @@ def main() -> None:
                 if node.get("style") is not None:
                     node.set("style", set_rect_fill(node.get("style", ""), hexes[2]))
             elif label == "t_color_4" and len(hexes) > 3:
+                if num_bands == 4:
+                    # Skip t_color_4 for 4-band resistors (tolerance is the 4th band)
+                    continue
                 if node.get("style") is not None:
                     node.set("style", set_rect_fill(node.get("style", ""), hexes[3]))
-            elif label == "t_color_tolerance" and len(hexes) > 4:
-                if node.get("style") is not None:
-                    node.set("style", set_rect_fill(node.get("style", ""), hexes[4]))
+            elif label == "t_color_tolerance":
+                if num_bands == 4:
+                    # For 4-band resistors, tolerance is the 4th band (index 3)
+                    if len(hexes) > 3 and node.get("style") is not None:
+                        node.set("style", set_rect_fill(node.get("style", ""), hexes[3]))
+                else:
+                    # For 5-band resistors, tolerance is the 5th band (index 4)
+                    if len(hexes) > 4 and node.get("style") is not None:
+                        node.set("style", set_rect_fill(node.get("style", ""), hexes[4]))
+            elif label == "t_tolerance":
+                tolerance_text = f"±{int(tolerance)}" if tolerance == int(tolerance) else f"±{tolerance}"
+                for tspan in node.iter(f"{{{SVG_NS}}}tspan"):
+                    if tspan.text:
+                        tspan.text = tolerance_text
+                        break
             elif label == "t_value":
                 node.set("x", str(VALUE_RIGHT_X))
                 for tspan in node.iter(f"{{{SVG_NS}}}tspan"):
@@ -178,8 +267,28 @@ def main() -> None:
         f.write('<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n')
         f.write("<!-- Generated by resistags.py -->\n")
         tree.write(f, encoding="unicode", default_namespace="", method="xml")
-    print(out_path)
+    return out_path
 
 
 if __name__ == "__main__":
-    main()
+    # Define resistance groups
+    values_0_25_watt_1percent = [
+        10, 22, 47, 100, 150, 200, 220, 270, 330, 470, 510, 680,
+        1000, 2000, 2200, 3300, 4700, 5100, 6800, 10_000, 20_000, 47_000,
+        51_000, 68_000, 100_000, 220_000, 300_000, 470_000, 680_000, 1_000_000,
+    ]
+    
+    values_1_watt_1percent_low = [
+        0.1, 0.33, 0.5, 1, 1.5, 2, 2.7, 3.3, 3.9, 4.7, 5.6, 7.5, 10,
+        15, 20, 27, 33, 39, 47, 56, 75, 100, 150, 200, 270, 330, 390, 470, 560, 750
+    ]
+
+    values_1_watt_1percent_high = [
+        1000, 1500, 2000, 2700, 3300, 3900, 4700, 5600, 7500, 8200, 10_000,
+        15_000, 20_000, 27_000, 33_000, 39_000, 47_000, 56_000, 75_000, 82_000,
+        100_000, 150_000, 200_000, 270_000, 330_000, 390_000, 470_000, 560_000, 750_000, 820_000
+    ]
+    # Generate sticker files for each group
+    generate_stickers(values_0_25_watt_1percent, "resistags_0_25_watt_1percent.svg", tolerance=1.0)
+    generate_stickers(values_1_watt_1percent_low, "resistags_1_watt_1percent_low.svg", tolerance=1.0)
+    generate_stickers(values_1_watt_1percent_high, "resistags_1_watt_1percent_high.svg", tolerance=1.0)
